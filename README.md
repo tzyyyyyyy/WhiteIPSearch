@@ -23,7 +23,7 @@
 
 1. 克隆仓库到本地
    ```bash
-   git clone https://github.com/你的用户名/WhiteIPSearch.git
+   git clone https://github.com/tzyyyyyyy/WhiteIPSearch.git
    cd WhiteIPSearch
    ```
 
