@@ -30,10 +30,10 @@
 2. 直接运行主程序
    ```bash
    # Windows系统
-   python white_ip_search.py
+   python WhiteIPSearch.py
    
    # macOS/Linux系统
-   python3 white_ip_search.py
+   python3 WhiteIPSearch.py
    ```
 
 ## 📖 使用指南
@@ -99,7 +99,7 @@ q. 退出程序
 
 ```
 WhiteIPSearch/
-├── white_ip_search.py  # 主程序文件
+├── WhiteIPSearch.py  # 主程序文件
 ├── whitelist.txt       # 白名单数据文件（自动创建）
 └── output/             # 批量检查结果输出目录（自动创建）
 ```
