@@ -50,7 +50,7 @@
    \ \____________\ \__\ \__\ \__\   \ \__\ \ \_______\ \__\ \__\   
     \|____________|\|__|\|__|\|__|    \|__|  \|_______|\|__|\|__|   
                                                  
-                     [https://your-docs-link.com](https://github.com/tzyyyyyyy/WhiteIPSearch)  By:tzyyy  
+                     https://github.com/tzyyyyyyy/WhiteIPSearch  By:tzyyy  
 
 请选择操作模式：
 1. 单个IP检查
