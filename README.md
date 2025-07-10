@@ -1,5 +1,4 @@
-# WhiteIPSearch
-# WhiteIPSearch
+# WhiteIPSearch——IP白名单检测工具
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -51,7 +50,7 @@
    \ \____________\ \__\ \__\ \__\   \ \__\ \ \_______\ \__\ \__\   
     \|____________|\|__|\|__|\|__|    \|__|  \|_______|\|__|\|__|   
                                                  
-                     https://your-docs-link.com  By:tzyyy  
+                     [https://your-docs-link.com](https://github.com/tzyyyyyyy/WhiteIPSearch)  By:tzyyy  
 
 请选择操作模式：
 1. 单个IP检查
@@ -118,6 +117,6 @@ WhiteIPSearch/
 ## 📞 联系作者
 
 - 作者：tzyyy
-- 项目地址：[https://github.com/你的用户名/WhiteIPSearch](https://github.com/你的用户名/WhiteIPSearch)
+- 项目地址：[https://github.com/tzyyyyyyy/WhiteIPSearch](https://github.com/tzyyyyyyy/WhiteIPSearch)
 
 欢迎提交Issue和Pull Request，共同完善工具功能！
