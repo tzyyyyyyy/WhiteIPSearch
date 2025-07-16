@@ -12,8 +12,18 @@ class Colors:
     YELLOW = '\033[93m'
     BLUE = '\033[94m'
     CYAN = '\033[96m'
+    MAGENTA = '\033[95m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
+def print_separator(char='-', length=50, color=Colors.BOLD):
+    """打印分隔线"""
+    print(f"\n{color}{char * length}{Colors.RESET}\n")
+
+def print_title(title, color=Colors.BLUE):
+    """打印带颜色的标题"""
+    print(f"\n{color}{Colors.BOLD}{title}{Colors.RESET}")
+    print_separator('-', len(title))
 
 def parse_ip_range(ip_str):
     """解析各种格式的IP范围，返回规范化的IP列表或CIDR"""
@@ -111,10 +121,24 @@ def is_ip_in_whitelist(ip, whitelist):
         return False
 
 def process_ip_file(input_file_path, whitelist):
-    """处理IP文件并输出不在白名单中的IP"""
+    """处理IP文件并分类IP"""
+    print_separator()
+    input_file_path = input_file_path.strip().strip('"')  # 去除可能的引号和空格
+    
     if not os.path.exists(input_file_path):
         print(f"{Colors.RED}错误：文件 '{input_file_path}' 不存在{Colors.RESET}")
-        return False
+        # 尝试修复路径
+        trimmed_path = input_file_path.strip()
+        if trimmed_path != input_file_path and os.path.exists(trimmed_path):
+            print(f"{Colors.YELLOW}提示：检测到路径中有多余空格，尝试使用：'{trimmed_path}'{Colors.RESET}")
+            input_file_path = trimmed_path
+        else:
+            normalized_path = os.path.normpath(input_file_path)
+            if normalized_path != input_file_path and os.path.exists(normalized_path):
+                print(f"{Colors.YELLOW}提示：尝试使用标准化路径：'{normalized_path}'{Colors.RESET}")
+                input_file_path = normalized_path
+            else:
+                return False, [], []
     
     with open(input_file_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
@@ -128,43 +152,128 @@ def process_ip_file(input_file_path, whitelist):
     
     if not ips:
         print(f"{Colors.RED}错误：输入文件中没有有效的IP地址{Colors.RESET}")
-        return False
+        return False, [], []
     
-    # 检查每个IP
+    # 分类IP
+    whitelisted_ips = []
     non_whitelisted_ips = []
     for ip in ips:
-        if not is_ip_in_whitelist(ip, whitelist):
+        if is_ip_in_whitelist(ip, whitelist):
+            whitelisted_ips.append(ip)
+        else:
             non_whitelisted_ips.append(ip)
     
-    # 创建输出目录
-    input_dir = os.path.dirname(os.path.abspath(input_file_path))
-    output_dir = os.path.join(input_dir, "output")
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # 生成输出文件名
-    base_name = os.path.splitext(os.path.basename(input_file_path))[0]
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file_path = os.path.join(output_dir, f"{base_name}_non_whitelisted_{timestamp}.txt")
-    
-    # 输出结果
-    if non_whitelisted_ips:
-        with open(output_file_path, 'w', encoding='utf-8') as f:
-            for ip in non_whitelisted_ips:
+    return True, whitelisted_ips, non_whitelisted_ips
+
+def save_results_to_file(results, file_path, header=None):
+    """保存结果到文件"""
+    try:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            if header:
+                f.write(f"{header}\n\n")
+            for ip in results:
                 f.write(f"{ip}\n")
-        
-        # 打印不在范围内的IP
-        print(f"\n{Colors.BLUE}不在白名单范围内的IP：{Colors.RESET}")
-        print(f"{Colors.BOLD}{Colors.UNDERLINE}{'-' * 30}{Colors.RESET}")
-        for ip in non_whitelisted_ips:
-            print(ip)
-        print(f"{Colors.BOLD}{Colors.UNDERLINE}{'-' * 30}{Colors.RESET}")
-        
-        print(f"{Colors.GREEN}已完成检查，发现 {len(non_whitelisted_ips)} 个不在白名单中的IP{Colors.RESET}")
-        print(f"{Colors.CYAN}结果已保存到文件：{output_file_path}{Colors.RESET}")
-    else:
-        print(f"{Colors.GREEN}所有IP都在白名单范围内{Colors.RESET}")
+        print(f"{Colors.GREEN}结果已保存到文件：{file_path}{Colors.RESET}")
+        return True
+    except Exception as e:
+        print(f"{Colors.RED}错误：保存文件时发生异常: {e}{Colors.RESET}")
+        return False
+
+def batch_check_mode(whitelist_file):
+    """批量检查模式（循环操作直到用户选择返回）"""
+    whitelist = load_whitelist_from_file(whitelist_file)
     
-    return True
+    while True:
+        print_separator()
+        print_title("批量IP检查模式")
+        print("1. 检查IP文件")
+        print("2. 查看上次检查结果")
+        print("b. 返回主菜单")
+        
+        choice = input("请输入选项：").strip().lower()
+        
+        if choice == '1':
+            input_file = input("请输入包含IP列表的文件路径：").strip().strip('"')
+            if not input_file:
+                print(f"{Colors.RED}错误：输入文件路径不能为空{Colors.RESET}")
+                continue
+            
+            if not os.path.exists(input_file):
+                print(f"{Colors.RED}错误：文件 '{input_file}' 不存在{Colors.RESET}")
+                continue
+            
+            # 重新加载白名单确保最新
+            whitelist = load_whitelist_from_file(whitelist_file)
+            success, whitelisted_ips, non_whitelisted_ips = process_ip_file(input_file, whitelist)
+            
+            if not success:
+                continue
+            
+            # 创建输出目录
+            input_dir = os.path.dirname(os.path.abspath(input_file))
+            output_dir = os.path.join(input_dir, "ip_check_output")
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # 生成输出文件名
+            base_name = os.path.splitext(os.path.basename(input_file))[0]
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            # 只有当存在白名单IP时才保存
+            if whitelisted_ips:
+                whitelist_file_path = os.path.join(output_dir, f"{base_name}_whitelisted_{timestamp}.txt")
+                save_results_to_file(
+                    whitelisted_ips, 
+                    whitelist_file_path,
+                    "以下IP在白名单范围内:"
+                )
+            
+            # 只有当存在非白名单IP时才保存
+            if non_whitelisted_ips:
+                non_whitelist_file_path = os.path.join(output_dir, f"{base_name}_non_whitelisted_{timestamp}.txt")
+                save_results_to_file(
+                    non_whitelisted_ips, 
+                    non_whitelist_file_path,
+                    "以下IP不在白名单范围内:"
+                )
+            
+            # 显示统计信息
+            print_separator('=')
+            print(f"{Colors.CYAN}检查完成，统计信息:{Colors.RESET}")
+            print(f"总IP数量: {len(whitelisted_ips) + len(non_whitelisted_ips)}")
+            
+            if whitelisted_ips:
+                print(f"{Colors.GREEN}在白名单中的IP数量: {len(whitelisted_ips)}{Colors.RESET}")
+            else:
+                print(f"{Colors.YELLOW}没有IP在白名单中{Colors.RESET}")
+                
+            if non_whitelisted_ips:
+                print(f"{Colors.RED}不在白名单中的IP数量: {len(non_whitelisted_ips)}{Colors.RESET}")
+            else:
+                print(f"{Colors.GREEN}所有IP都在白名单中{Colors.RESET}")
+            
+            # 询问是否查看结果
+            view = input("\n是否查看详细结果？(y/n): ").strip().lower()
+            if view == 'y':
+                if whitelisted_ips:
+                    print_separator()
+                    print(f"{Colors.GREEN}在白名单中的IP:{Colors.RESET}")
+                    for ip in whitelisted_ips:
+                        print(ip)
+                
+                if non_whitelisted_ips:
+                    print_separator()
+                    print(f"{Colors.RED}不在白名单中的IP:{Colors.RESET}")
+                    for ip in non_whitelisted_ips:
+                        print(ip)
+        
+        elif choice == '2':
+            print(f"{Colors.YELLOW}功能开发中，敬请期待...{Colors.RESET}")
+        
+        elif choice == 'b':
+            break
+            
+        else:
+            print(f"{Colors.RED}无效的选项，请重新输入{Colors.RESET}")
 
 def load_whitelist_from_file(file_path):
     """从文件加载白名单并自动处理各种格式"""
@@ -204,30 +313,23 @@ def save_whitelist_to_file(whitelist, file_path):
         print(f"{Colors.RED}错误：保存白名单文件时发生异常: {e}{Colors.RESET}")
         return False
 
-def manage_whitelist(whitelist_file):
-    """管理白名单界面"""
-    whitelist = load_whitelist_from_file(whitelist_file)
-    
+def add_ip_to_whitelist(whitelist):
+    """循环添加IP到白名单"""
     while True:
-        print(f"\n{Colors.BLUE}白名单管理{Colors.RESET}")
-        print(f"{Colors.BOLD}{Colors.UNDERLINE}{'-' * 20}{Colors.RESET}")
-        print(f"当前白名单条目数: {len(whitelist)}")
-        print("1. 查看白名单")
-        print("2. 添加IP/网段")
-        print("3. 删除IP/网段")
-        print("4. 保存白名单")
-        print("5. 刷新白名单（从文件重新加载）")
-        print("b. 返回主菜单")
+        print_separator()
+        print_title("添加IP/网段到白名单")
+        print("当前白名单条目数:", len(whitelist))
+        print("1. 输入IP/网段")
+        print("2. 从文件导入")
+        print("b. 返回")
         
         choice = input("请输入选项：").strip().lower()
         
         if choice == '1':
-            print(f"\n{Colors.CYAN}当前白名单内容:{Colors.RESET}")
-            for i, entry in enumerate(whitelist, 1):
-                print(f"{i}. {entry}")
+            entry = input("请输入要添加的IP或网段（支持各种格式，输入'b'返回）：").strip()
+            if entry.lower() == 'b':
+                continue
                 
-        elif choice == '2':
-            entry = input("请输入要添加的IP或网段（支持各种格式）：").strip()
             if not entry:
                 print(f"{Colors.RED}错误：输入不能为空{Colors.RESET}")
                 continue
@@ -246,9 +348,58 @@ def manage_whitelist(whitelist_file):
                     added_count += 1
                     
             print(f"{Colors.GREEN}成功添加 {added_count} 个IP/网段{Colors.RESET}")
+            print(f"当前白名单条目数: {len(whitelist)}")
                 
-        elif choice == '3':
-            entry = input("请输入要删除的IP或网段：").strip()
+        elif choice == '2':
+            file_path = input("请输入包含IP列表的文件路径：").strip()
+            if not file_path:
+                print(f"{Colors.RED}错误：文件路径不能为空{Colors.RESET}")
+                continue
+                
+            if not os.path.exists(file_path):
+                print(f"{Colors.RED}错误：文件 '{file_path}' 不存在{Colors.RESET}")
+                continue
+                
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = [line.strip() for line in f.readlines() if line.strip()]
+            
+            added_count = 0
+            for line in lines:
+                parsed_ips = parse_ip_range(line)
+                for ip in parsed_ips:
+                    if ip not in whitelist:
+                        whitelist.append(ip)
+                        added_count += 1
+            
+            print(f"{Colors.GREEN}成功从文件添加 {added_count} 个IP/网段{Colors.RESET}")
+            print(f"当前白名单条目数: {len(whitelist)}")
+                
+        elif choice == 'b':
+            break
+            
+        else:
+            print(f"{Colors.RED}无效的选项，请重新输入{Colors.RESET}")
+    
+    return whitelist
+
+def remove_ip_from_whitelist(whitelist):
+    """循环从白名单删除IP"""
+    while True:
+        print_separator()
+        print_title("从白名单删除IP/网段")
+        print("当前白名单条目数:", len(whitelist))
+        print("1. 输入IP/网段")
+        print("2. 从文件导入")
+        print("3. 查看当前白名单")
+        print("b. 返回")
+        
+        choice = input("请输入选项：").strip().lower()
+        
+        if choice == '1':
+            entry = input("请输入要删除的IP或网段（支持各种格式，输入'b'返回）：").strip()
+            if entry.lower() == 'b':
+                continue
+                
             if not entry:
                 print(f"{Colors.RED}错误：输入不能为空{Colors.RESET}")
                 continue
@@ -270,6 +421,72 @@ def manage_whitelist(whitelist_file):
                 print(f"{Colors.GREEN}成功删除 {removed_count} 个IP/网段{Colors.RESET}")
             else:
                 print(f"{Colors.RED}未找到匹配的IP/网段{Colors.RESET}")
+            print(f"当前白名单条目数: {len(whitelist)}")
+                
+        elif choice == '2':
+            file_path = input("请输入包含IP列表的文件路径：").strip()
+            if not file_path:
+                print(f"{Colors.RED}错误：文件路径不能为空{Colors.RESET}")
+                continue
+                
+            if not os.path.exists(file_path):
+                print(f"{Colors.RED}错误：文件 '{file_path}' 不存在{Colors.RESET}")
+                continue
+                
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = [line.strip() for line in f.readlines() if line.strip()]
+            
+            removed_count = 0
+            for line in lines:
+                parsed_ips = parse_ip_range(line)
+                for ip in parsed_ips:
+                    if ip in whitelist:
+                        whitelist.remove(ip)
+                        removed_count += 1
+            
+            print(f"{Colors.GREEN}成功从文件删除 {removed_count} 个IP/网段{Colors.RESET}")
+            print(f"当前白名单条目数: {len(whitelist)}")
+                
+        elif choice == '3':
+            print(f"\n{Colors.CYAN}当前白名单内容:{Colors.RESET}")
+            for i, entry in enumerate(sorted(whitelist), 1):
+                print(f"{i}. {entry}")
+                
+        elif choice == 'b':
+            break
+            
+        else:
+            print(f"{Colors.RED}无效的选项，请重新输入{Colors.RESET}")
+    
+    return whitelist
+
+def manage_whitelist(whitelist_file):
+    """管理白名单界面"""
+    whitelist = load_whitelist_from_file(whitelist_file)
+    
+    while True:
+        print_separator()
+        print_title("白名单管理")
+        print(f"当前白名单条目数: {len(whitelist)}")
+        print("1. 查看白名单")
+        print("2. 添加IP/网段")
+        print("3. 删除IP/网段")
+        print("4. 保存白名单")
+        print("5. 刷新白名单（从文件重新加载）")
+        print("b. 返回主菜单")
+        
+        choice = input("请输入选项：").strip().lower()
+        
+        if choice == '1':
+            print(f"\n{Colors.CYAN}当前白名单内容:{Colors.RESET}")
+            for i, entry in enumerate(sorted(whitelist), 1):
+                print(f"{i}. {entry}")
+                
+        elif choice == '2':
+            whitelist = add_ip_to_whitelist(whitelist)
+                
+        elif choice == '3':
+            whitelist = remove_ip_from_whitelist(whitelist)
                 
         elif choice == '4':
             if save_whitelist_to_file(whitelist, whitelist_file):
@@ -281,6 +498,10 @@ def manage_whitelist(whitelist_file):
             print(f"{Colors.GREEN}白名单已刷新{Colors.RESET}")
                 
         elif choice == 'b':
+            # 返回前询问是否保存
+            save = input("是否保存对白名单的修改？(y/n): ").strip().lower()
+            if save == 'y':
+                save_whitelist_to_file(whitelist, whitelist_file)
             break
             
         else:
@@ -291,6 +512,8 @@ def manage_whitelist(whitelist_file):
 def single_ip_check_mode(whitelist):
     """单个IP检查模式（循环检查直到用户选择返回）"""
     while True:
+        print_separator()
+        print_title("单个IP检查模式")
         ip_input = input("\n请输入需要查询的IP地址（输入'b'返回主菜单）：").strip()
         
         if ip_input.lower() == 'b':
@@ -321,28 +544,26 @@ def main():
                      https://github.com/tzyyyyyyy/WhiteIPSearch  By:tzyyy  
     """)
 
-
-    
-    # 加载白名单
+    # 初始加载白名单
     whitelist = load_whitelist_from_file(WHITELIST_FILE)
     
     while True:
-        print("\n请选择操作模式：")
+        print_separator()
+        print_title("主菜单")
+        print("请选择操作模式：")
         print("1. 单个IP检查")
-        print("2. 批量文件检查")
+        print("2. 批量IP检查")
         print("3. 白名单管理")
         print("q. 退出程序")
         
         choice = input("请输入选项：").strip().lower()
         
         if choice == '1':
+            # 每次进入单个IP检查模式前重新加载白名单
+            whitelist = load_whitelist_from_file(WHITELIST_FILE)
             single_ip_check_mode(whitelist)
         elif choice == '2':
-            input_file = input("请输入包含IP列表的文件路径：").strip()
-            if not input_file:
-                print(f"{Colors.RED}错误：输入文件路径不能为空{Colors.RESET}")
-                continue
-            process_ip_file(input_file, whitelist)
+            batch_check_mode(WHITELIST_FILE)
         elif choice == '3':
             whitelist = manage_whitelist(WHITELIST_FILE)
         elif choice == 'q':
