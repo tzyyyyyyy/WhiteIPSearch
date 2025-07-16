@@ -70,10 +70,9 @@ q. 退出程序
 
 1. 选择主菜单中的 `2` 进入批量检查模式
 2. 输入包含IP列表的文件路径（每行一个IP）
-3. 检查结果将自动保存至：
-   ```
-   输入文件所在目录/output/[原文件名]_non_whitelisted_[时间戳].txt
-   ```
+3. 程序会生成两个文件：
+   - `ip_whitelisted_日期.txt`（白名单中的 IP）
+   - `ip_non_whitelisted_日期.txt`（不在白名单中的 IP）
 
 ### 3. 白名单管理
 
@@ -101,7 +100,7 @@ q. 退出程序
 WhiteIPSearch/
 ├── WhiteIPSearch.py  # 主程序文件
 ├── whitelist.txt       # 白名单数据文件（自动创建）
-└── output/             # 批量检查结果输出目录（自动创建）
+└── ip_check_output/             # 批量检查结果输出目录（自动创建）
 ```
 
 ## ⚠️ 注意事项
